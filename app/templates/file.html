@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h3>文件列表</h3>
+<ul>
+    {% for item, item_path, relative_path in items %}
+        <li>
+            {% if item_path.endswith('/') %}
+                <a href="{{ url_for('file_browser', subpath=item_path) }}">{{ item }}</a>
+            {% else %}
+	    	<a href="{{ url_for('download_file', filename=relative_path) }}">{{ item }}</a>
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
+<a href="{{ url_for('file_browser', subpath='') }}">Go to root</a>
+{% endblock %}

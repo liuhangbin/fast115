@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h3>Login</h3>
+<form method="POST" action="/login">  <!-- 确保 action 指向正确的路由 -->
+    <label for="cookies">Cookies:</label><br>
+    <input type="text" id="cookies" name="cookies" required><br><br>
+    <label for="app">App:</label><br>
+    <select id="app" name="app" required>
+        <option value="alipaymini">Alipay Mini</option>
+        <option value="wechatmini">WeChat Mini</option>
+        <option value="harmony">Harmony</option>
+    </select><br><br>
+    <input type="submit" name="submit" value="登录">
+</form>
+{% endblock %}

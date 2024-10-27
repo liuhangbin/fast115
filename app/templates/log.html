@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="log-container" id="log-container"></div>
+<script>
+    // 自动刷新日志内容
+    function fetchLogs() {
+        fetch('/log_data')  // 请求日志数据
+            .then(response => response.text())
+            .then(data => {
+                const logContainer = document.getElementById('log-container');
+                logContainer.textContent = data;  // 更新日志内容
+                logContainer.scrollTop = logContainer.scrollHeight;  // 滚动到底部
+            })
+            .catch(error => console.error('Error fetching logs:', error));
+    }
+
+    // 每 3 秒刷新一次日志
+    setInterval(fetchLogs, 3000);
+
+    // 页面加载时立即获取一次日志
+    window.onload = fetchLogs;
+</script>
+{% endblock %}

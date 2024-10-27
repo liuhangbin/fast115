@@ -1,0 +1,4 @@
+flask
+p115client
+python-dotenv
+urllib3

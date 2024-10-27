@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- 插入到页面标题上方 -->
+{% for message in get_flashed_messages() %}
+    <div class="alert">{{ message }}</div>
+{% endfor %}
+<head>
+    {% block head %}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" type="text/css">
+    {% endblock %}
+</head>
+<body>
+    <h2>
+        <img alt="Avatar" class="avatar" src="{{ url_for('static', filename='images/avatar.png') }}">
+        Fast 115
+    </h2>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('log_view') }}">Logs</a></li>
+            <li><a href="{{ url_for('file_browser') }}">Files</a></li>
+        </ul>
+    </nav>
+    {% block content %}{% endblock %}
+    <img alt="Walking Totoro" class="totoro" src="{{ url_for('static', filename='images/totoro.gif') }}" name="to~to~ro~">
+    <footer>
+        <small>&copy; 2024 <a href="https://github.com/liuhangbin/">Hangbin Liu</a></small>
+    </footer>
+</body>
+</html>
