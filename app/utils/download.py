@@ -19,8 +19,7 @@ import time
 from dotenv import load_dotenv
 load_dotenv()
 strm_dir = os.getenv('STRM_DIR', '/media')
-strm_host = os.getenv('STRM_HOST', 'host.docker.internal')
-strm_port = os.getenv('STRM_PORT', '5000')
+strm_host = os.getenv('STRM_HOST', 'http://127.0.0.1:55000')
 
 lock = Lock()
 
@@ -138,7 +137,7 @@ def create_strm(client, cid, count):
         try:
             os.makedirs(dirname(strm_path), exist_ok=True)  # 确保目录存在
             with open(strm_path, "w") as f:  # 使用 with 确保文件会被关闭
-                f.write(f"http://{strm_host}:{strm_port}/{translate(attr['name'], transtab)}?pickcode={attr['pickcode']}")
+                f.write(f"{strm_host}/{translate(attr['name'], transtab)}?pickcode={attr['pickcode']}")
             count['strm_count'] += 1
             logging.info(f"生成 .strm 文件: {strm_path}")
         except Exception as e:
