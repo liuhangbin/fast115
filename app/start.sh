@@ -1,5 +1,5 @@
 #!/bin/bash
 
-source /app/myenv/bin/activate
+source /myenv/bin/activate
 /app/app.py &
 wait
