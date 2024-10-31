@@ -7,10 +7,14 @@ PLATFORMS="linux/amd64,linux/arm64"
 
 # 启用 buildx 构建器
 docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-docker buildx create --use
+
+# 检查是否已有构建器，如果没有则创建一个新的
+if ! docker buildx ls | grep -q 'fast115_builder'; then
+    docker buildx create --name fast115_builder
+fi
 
 # 构建并推送多架构镜像
-docker buildx build --platform $PLATFORMS \
+docker buildx build --builder fast115_builder --platform $PLATFORMS \
     -t $IMAGE_NAME:$VERSION \
     -t $IMAGE_NAME:latest \
     --push .
