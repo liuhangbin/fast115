@@ -13,6 +13,7 @@ from shutil import copyfileobj
 from threading import Lock
 import logging
 import os
+import re
 import sys
 import time
 
@@ -148,12 +149,21 @@ def download_path(client, path):
     makedirs(strm_dir, exist_ok=True)
     cid = 0
 
-    response = client.fs_dir_getid(path)
-    if response['errno'] != 0:
-        logging.error(f"路径获取cid失败: {response['error']}")
-        return
+    # Check if the path is a URL, e.g. https://115.com/?cid=0&offset=0&tab=&mode=wangpan
+    match = re.search(r"\?cid=([0-9]+)", path)
+    if match:
+        cid = match.group(1)
+    # Check if the path is cid directly
+    elif path.isdigit():
+        cid = path
+    # Now the path should be dir like /movies/something/else
     else:
-        cid = response['id']
+        response = client.fs_dir_getid(path)
+        if response['errno'] != 0:
+            logging.error(f"路径获取cid失败: {response['error']}")
+            return
+        else:
+            cid = response['id']
 
     # 统计变量
     count = {'strm_count': 0, 'existing_strm_count': 0,
