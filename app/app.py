@@ -6,7 +6,11 @@ from flask import redirect, url_for, render_template, send_from_directory
 from p115client import P115Client
 from p115client.tool.iterdir import iter_files
 from pathlib import Path
-import os
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+from croniter import croniter
+from datetime import datetime
+import os, re, yaml
 
 from utils.log import print_message, configure_logging, read_log_file
 from utils.download import download_path
@@ -15,10 +19,66 @@ from utils.web302 import find_query_value, get_downurl, get_pickcode_for_sha1
 app = Flask(__name__)
 strm_dir = os.getenv('STRM_DIR', '/media')
 app_port = os.getenv('APP_PORT', '5000')
+sync_cron = os.getenv('SYNC_CRON', '')
+sync_file = Path(os.getenv('SYNC_FILE_PATH', '/data/sync.yaml')).expanduser()
 cookies_path = Path(os.getenv('COOKIE_PATH', '/data/115-cookies.txt')).expanduser()
 if not os.path.exists(cookies_path):
     with open(cookies_path, 'w') as f:
         f.write('')
+
+# 定义你想定期执行的任务
+def scheduled_task():
+    client = P115Client(cookies_path)
+    if not client.login_status():
+        print_message(f'Unable to sync files: invalid cookies?')
+        return
+
+    print_message("开始定时任务");
+    if os.path.exists(sync_file):
+        with open(sync_file, 'r') as fp:
+            files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
+            for path in files:
+                download_path(client, path)
+
+def validate_cron_expression(cron_expression):
+    try:
+        cron = croniter(cron_expression, datetime.now())
+        return True
+    except ValueError as e:
+        print_message(f"Invalid cron expression: {e}")
+        return False
+
+def parse_cron_expression(cron_expression):
+    """
+    将 cron 表达式解析为字典，传递给 APScheduler add_job 方法。
+    调用前需调用 validate_cron_expression() 来验证cron格式正确
+    示例：
+        "0 1 * * *"  -> {"minute": "0", "hour": "1"}
+    """
+    parts = cron_expression.split()
+    cron_dict = {
+        'minute': parts[0],
+        'hour': parts[1],
+        'day': parts[2],
+        'month': parts[3],
+        'day_of_week': parts[4]
+    }
+    return cron_dict
+
+# 配置 APScheduler
+def start_scheduler():
+    # 验证cron是否正确
+    if not validate_cron_expression(sync_cron):
+        return
+    # 创建调度器
+    scheduler = BackgroundScheduler()
+    # 使用 cron 表达式添加定时任务
+    try:
+        scheduler.add_job(scheduled_task, 'cron', **parse_cron_expression(sync_cron))
+        scheduler.start()
+        print_message(f"Job scheduled with cron expression: {sync_cron}")
+    except ValueError as e:
+        print_message(f"Error scheduling job: {e}")
 
 @app.errorhandler(404)  # 传入要处理的错误代码
 def page_not_found(e):  # 接受异常对象作为参数
@@ -134,4 +194,5 @@ def web302(name=""):
 
 if __name__ == '__main__':
     configure_logging()
+    start_scheduler()  # 启动定时任务调度器
     app.run(host='0.0.0.0', port=app_port)

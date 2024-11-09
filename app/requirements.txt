@@ -1,4 +1,7 @@
+apscheduler
+croniter
 flask
 p115client
 python-dotenv
+pyyaml
 urllib3

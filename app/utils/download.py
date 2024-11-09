@@ -16,11 +16,13 @@ import os
 import re
 import sys
 import time
+import yaml
 
 from dotenv import load_dotenv
 load_dotenv()
 strm_dir = os.getenv('STRM_DIR', '/media')
 strm_host = os.getenv('STRM_HOST', 'http://127.0.0.1:55000')
+sync_file = Path(os.getenv('SYNC_FILE_PATH', '/data/sync.yaml')).expanduser()
 
 lock = Lock()
 
@@ -164,6 +166,18 @@ def download_path(client, path):
             return
         else:
             cid = response['id']
+
+    if exists(sync_file):
+        with open(sync_file, 'r') as fp:
+            files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
+
+        files[cid] = path
+
+        with open(sync_file, 'w') as fp:
+            yaml.dump(files, fp)
+    else:
+        with open(sync_file, 'w') as fp:
+            yaml.dump({cid: path}, fp)
 
     # 统计变量
     count = {'strm_count': 0, 'existing_strm_count': 0,
