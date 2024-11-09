@@ -43,6 +43,7 @@ services:
         environment:
             - TZ=Asia/Shanghai
             - STRM_HOST=you_external_domain # strm 地址，从内部访问就内网IP, 外部访问就填外网域名
+            - APP_PORT=5000 # docker映射端口，默认5000, 如果要改成其他值，请和上面的ports映射同时修改
         networks: bridge
         restart: unless-stop
 ```

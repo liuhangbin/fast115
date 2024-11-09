@@ -14,6 +14,7 @@ from utils.web302 import find_query_value, get_downurl, get_pickcode_for_sha1
 
 app = Flask(__name__)
 strm_dir = os.getenv('STRM_DIR', '/media')
+app_port = os.getenv('APP_PORT', '5000')
 cookies_path = Path(os.getenv('COOKIE_PATH', '/data/115-cookies.txt')).expanduser()
 if not os.path.exists(cookies_path):
     with open(cookies_path, 'w') as f:
@@ -133,4 +134,4 @@ def web302(name=""):
 
 if __name__ == '__main__':
     configure_logging()
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=app_port)
