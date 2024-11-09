@@ -68,17 +68,17 @@ def download_pictures(client, cid, count):
     with ThreadPoolExecutor(20) as executor:
         executor.map(lambda attr: download_pic(attr, count), iter_files(client, cid, type=2, with_path=True))
 
-def download_file(client, attr, count):
+def download_file(client, attr, extensions, count):
     file_name = attr.get('name')
     file_path = strm_dir + attr["path"]
 
     # 定义元数据文件扩展名
-    metadata_extensions = ['.nfo', '.srt', '.ass', '.ssa']
-    #logging.info(f"定义元数据文件扩展名: {metadata_extensions}")
+    metadata_extensions = extensions if len(extensions) > 0 else ['.nfo', '.srt', '.ass', '.ssa']
+    logging.info(f"定义元数据文件扩展名: {metadata_extensions}")
 
     # 检查文件扩展名是否在 metadata_extensions 列表中
     if not any(file_name.endswith(ext) for ext in metadata_extensions):
-        #logging.info(f"跳过下载: {file_name} 不符合扩展名要求")
+        logging.info(f"跳过下载: {file_name} 不符合扩展名要求")
         return
 
     # 检查文件是否已经存在
@@ -105,18 +105,6 @@ def download_file(client, attr, count):
         if exists(file_path):
             logging.info(f"删除空文件: {file_name}")
             remove(file_path)
-
-def download_nfo(client, cid, count):
-    # 遍历文件并下载
-    logging.info("开始遍历文件并下载元数据...")
-    for attr in iter_files(client, cid, type=99, with_path=True):
-        download_file(client, attr, count)
-
-def download_subtitle(client, cid, count):
-    # 遍历文件并下载
-    logging.info("开始遍历文件并下载字幕...")
-    for attr in iter_subtitles_with_url(client, cid, with_path=True):
-        download_file(client, attr, count)
 
 def create_strm(client, cid, count):
     # 创建 translate 方法
@@ -146,7 +134,7 @@ def create_strm(client, cid, count):
         except Exception as e:
             logging.error(f"写入 .strm 文件时出错: {e}")
 
-def download_path(client, path):
+def download_path(client, path, extensions):
     logging.info(f"使用自定义保存路径: {strm_dir}")
     makedirs(strm_dir, exist_ok=True)
     cid = 0
@@ -190,8 +178,10 @@ def download_path(client, path):
 
     create_strm(client, cid, count)
     download_pictures(client, cid, count)
-    download_nfo(client, cid, count)
-    download_subtitle(client, cid, count)
+    # 遍历文件并下载元数据和字幕文件
+    logging.info("开始遍历文件并下载元数据...")
+    for attr in iter_files(client, cid, type=99, with_path=True):
+        download_file(client, attr, extensions, count)
 
     # 结束时间
     end_time = time.time()

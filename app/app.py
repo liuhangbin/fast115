@@ -95,7 +95,14 @@ def index():
     if request.method == 'POST':
         path = request.form.get('path')
         #create_strm = 'create_strm' in request.form  # 选择框的状态
-        download_path(client, path)
+        # 删除多余的空格
+        ext = re.sub(r'\s+', ' ', request.form.get('extensions'))
+        if len(ext) > 0:
+            # 按照逗号或者空格分割
+            extensions = re.split(r'[，,\s]+', ext)
+        else:
+            extensions = []
+        download_path(client, path, extensions)
         return redirect(url_for('index'))  # 重定向回主页
 
     return render_template('index.html')
