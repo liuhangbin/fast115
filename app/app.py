@@ -3,6 +3,7 @@
 
 from flask import Flask, request, Response, flash
 from flask import redirect, url_for, render_template, send_from_directory
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 from p115 import P115Client
 from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -19,7 +20,8 @@ from dotenv import load_dotenv
 # load .env
 load_dotenv()
 
-app = Flask(__name__)
+default_user = os.getenv('USERNAME', None)
+default_pass = os.getenv('PASSWORD', '@#$%^&!')
 strm_dir = os.getenv('STRM_DIR', '/media')
 app_port = os.getenv('APP_PORT', '5000')
 sync_cron = os.getenv('SYNC_CRON', '')
@@ -28,6 +30,29 @@ cookies_path = Path(os.getenv('COOKIE_PATH', '/data/115-cookies.txt')).expanduse
 if not os.path.exists(cookies_path):
     with open(cookies_path, 'w') as f:
         f.write('')
+
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
+login_manager = LoginManager(app)
+# 默认登陆地址
+login_manager.login_view = 'login'
+
+# User类继承自 UserMixin，这样就自动拥有了许多方法
+class User(UserMixin):
+    def __init__(self, username):
+        self.username = username
+
+    @property
+    def id(self):
+        return self.username
+
+# Flask-Login的user_loader，在这里我们不需要查询数据库，因为我们只有一个用户
+@login_manager.user_loader
+def load_user(user_id):
+    # 假设只有一个用户，直接返回User对象
+    if user_id == default_user or user_id == 'fast115':
+        return User(user_id)
+    return None
 
 # 定义你想定期执行的任务
 def scheduled_task():
@@ -87,8 +112,38 @@ def start_scheduler():
 def page_not_found(e):  # 接受异常对象作为参数
     return render_template('404.html'), 404  # 返回模板和状态码
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if default_user is None:
+        user = User('fast115')
+        login_user(user)  # 无用户的时候默认登陆
+        return redirect(url_for('index'))  # 重定向到主页
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        # 验证用户名和密码是否一致
+        if username == default_user and password == default_pass:
+            user = User(username)
+            login_user(user)  # 登入用户
+            flash('Login success.')
+            return redirect(url_for('index'))  # 重定向到主页
+
+        flash('Invalid username or password.')  # 如果验证失败，显示错误消息
+        return redirect(url_for('login'))  # 重定向回登录页面
+
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()  # 登出用户
+    flash('Goodbye.')
+    return redirect(url_for('index'))  # 重定向回首页
+
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/index.html', methods=['GET', 'POST'])
+@login_required
 def index():
     # 读取 cookies 文件
     client = P115Client(cookies_path)
@@ -112,6 +167,7 @@ def index():
 
 @app.route('/cookies', methods=['GET', 'POST'])
 @app.route('/cookies.html', methods=['GET', 'POST'])
+@login_required
 def cookies():
     if request.method == 'POST':
         # 获取表单数据
@@ -133,10 +189,12 @@ def cookies():
 
 @app.get("/log")
 @app.get("/log.html")
+@login_required
 def log_view():
     return render_template('log.html')
 
 @app.route('/log_data')
+@login_required
 def log_data():
     return Response(read_log_file(), content_type='text/plain')
 
