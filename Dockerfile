@@ -8,13 +8,13 @@ LABEL org.opencontainers.image.authors="Hangbin Liu <liuhangbin@gmail.com>"
 RUN apt-get update && apt-get install -y python3 python3-pip python3-venv language-pack-zh-hans vim && apt-get autoclean
 ENV LANG=zh_CN.UTF-8
 
-# Install requirements
-RUN python3 -m venv /myenv && . /myenv/bin/activate && \
-	pip install --no-cache-dir flask python-115 python-dotenv urllib3
-
 # 设置工作目录
 RUN mkdir /data
 COPY app /app
 WORKDIR /app
+
+# Install requirements
+RUN python3 -m venv /myenv && . /myenv/bin/activate && \
+	pip install --no-cache-dir -r /app/requirements.txt
 
 CMD ["/app/start.sh"]

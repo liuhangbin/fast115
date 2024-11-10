@@ -2,7 +2,7 @@ apscheduler
 croniter
 flask
 flask_login
-p115client
+python-115
 python-dotenv
 pyyaml
 urllib3
