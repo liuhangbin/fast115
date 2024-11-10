@@ -93,7 +93,7 @@ def index():
     # 读取 cookies 文件
     client = P115Client(cookies_path)
     if not client.login_status():
-        return redirect(url_for('login'))  # 跳转到登录页面
+        return redirect(url_for('cookies'))  # 跳转到登录页面
 
     if request.method == 'POST':
         path = request.form.get('path')
@@ -110,9 +110,9 @@ def index():
 
     return render_template('index.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-@app.route('/login.html', methods=['GET', 'POST'])
-def login():
+@app.route('/cookies', methods=['GET', 'POST'])
+@app.route('/cookies.html', methods=['GET', 'POST'])
+def cookies():
     if request.method == 'POST':
         # 获取表单数据
         cookies = request.form.get('cookies')
@@ -125,11 +125,11 @@ def login():
                 return redirect(url_for('index'))  # 登录成功，重定向回主页
             else:
                 print_message(f'Login failed: invalid cookies?')
-                return render_template('login.html')
+                return render_template('cookies.html')
         else:
             flash('cookies and app are required!')
 
-    return render_template('login.html')
+    return render_template('cookies.html')
 
 @app.get("/log")
 @app.get("/log.html")
