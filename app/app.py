@@ -15,6 +15,10 @@ from utils.log import print_message, configure_logging, read_log_file
 from utils.download import download_path
 from utils.web302 import find_query_value, get_downurl, get_pickcode_for_sha1
 
+from dotenv import load_dotenv
+# load .env
+load_dotenv()
+
 app = Flask(__name__)
 strm_dir = os.getenv('STRM_DIR', '/media')
 app_port = os.getenv('APP_PORT', '5000')

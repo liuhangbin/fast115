@@ -19,6 +19,7 @@ import yaml
 
 from dotenv import load_dotenv
 load_dotenv()
+
 strm_dir = os.getenv('STRM_DIR', '/media')
 strm_host = os.getenv('STRM_HOST', 'http://127.0.0.1:55000')
 sync_file = Path(os.getenv('SYNC_FILE_PATH', '/data/sync.yaml')).expanduser()

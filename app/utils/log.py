@@ -7,6 +7,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import os
 
+from dotenv import load_dotenv
+# load .env
+load_dotenv()
+
 log_file = Path(os.getenv('LOG_FILE_PATH', '/data/fast115.log')).expanduser()
 if not os.path.exists(log_file):
     with open(log_file, 'w') as f:
