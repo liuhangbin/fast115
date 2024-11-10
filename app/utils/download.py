@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # vim: sts=4 ts=4 sw=4 expandtab :
 
-from p115client import P115Client
+from p115 import P115Client
+from p115.tool import iter_files
 from pathlib import Path
 from os import makedirs, remove
 from os.path import dirname, join, exists
-from p115client.tool import iter_files
-from p115client.tool.download import iter_subtitles_with_url
 from concurrent.futures import ThreadPoolExecutor
 from urllib.request import urlopen, Request
 from shutil import copyfileobj

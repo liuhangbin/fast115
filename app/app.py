@@ -3,8 +3,7 @@
 
 from flask import Flask, request, Response, flash
 from flask import redirect, url_for, render_template, send_from_directory
-from p115client import P115Client
-from p115client.tool.iterdir import iter_files
+from p115 import P115Client
 from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
