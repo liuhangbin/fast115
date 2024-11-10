@@ -40,8 +40,8 @@ def scheduled_task():
     if os.path.exists(sync_file):
         with open(sync_file, 'r') as fp:
             files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
-            for path in files:
-                download_path(client, path)
+            for cid in files:
+                download_path(client, cid, files[cid]['ext'])
 
 def validate_cron_expression(cron_expression):
     try:

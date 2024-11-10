@@ -72,12 +72,8 @@ def download_file(client, attr, extensions, count):
     file_name = attr.get('name')
     file_path = strm_dir + attr["path"]
 
-    # 定义元数据文件扩展名
-    metadata_extensions = extensions if len(extensions) > 0 else ['.nfo', '.srt', '.ass', '.ssa']
-    logging.info(f"定义元数据文件扩展名: {metadata_extensions}")
-
-    # 检查文件扩展名是否在 metadata_extensions 列表中
-    if not any(file_name.endswith(ext) for ext in metadata_extensions):
+    # 检查文件扩展名是否在 extensions 列表中
+    if not any(file_name.endswith(ext) for ext in extensions):
         logging.info(f"跳过下载: {file_name} 不符合扩展名要求")
         return
 
@@ -158,17 +154,21 @@ def download_path(client, path, extensions):
     # Don't know why the cid is str, need to convert it to int when get path
     path = client.fs.get_path(int(cid))
 
+    # 定义元数据文件扩展名
+    extensions = extensions if len(extensions) > 0 else ['.nfo', '.srt', '.ass', '.ssa']
+    logging.info(f"定义元数据文件扩展名: {extensions}")
+
     if exists(sync_file):
         with open(sync_file, 'r', encoding='utf-8') as fp:
             files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
 
-        files[cid] = path
+        files[cid] = {'path': path, 'ext': extensions}
 
         with open(sync_file, 'w', encoding='utf-8') as fp:
             yaml.dump(files, fp, allow_unicode=True)
     else:
         with open(sync_file, 'w', encoding='utf-8') as fp:
-            yaml.dump({cid: path}, fp, allow_unicode=True)
+            yaml.dump({cid: {'path': path, 'ext': extensions}}, fp, allow_unicode=True)
 
     # 统计变量
     count = {'strm_count': 0, 'existing_strm_count': 0,
