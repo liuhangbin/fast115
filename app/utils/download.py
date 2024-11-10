@@ -154,17 +154,20 @@ def download_path(client, path, extensions):
         else:
             cid = response['id']
 
+    # Don't know why the cid is str, need to convert it to int when get path
+    path = client.fs.get_path(int(cid))
+
     if exists(sync_file):
-        with open(sync_file, 'r') as fp:
+        with open(sync_file, 'r', encoding='utf-8') as fp:
             files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
 
         files[cid] = path
 
-        with open(sync_file, 'w') as fp:
-            yaml.dump(files, fp)
+        with open(sync_file, 'w', encoding='utf-8') as fp:
+            yaml.dump(files, fp, allow_unicode=True)
     else:
-        with open(sync_file, 'w') as fp:
-            yaml.dump({cid: path}, fp)
+        with open(sync_file, 'w', encoding='utf-8') as fp:
+            yaml.dump({cid: path}, fp, allow_unicode=True)
 
     # 统计变量
     count = {'strm_count': 0, 'existing_strm_count': 0,
