@@ -26,7 +26,18 @@ sync_file = Path(os.getenv('SYNC_FILE_PATH', '/data/sync.yaml')).expanduser()
 
 lock = Lock()
 
-def download_pic(attr, count):
+def should_skip(file_name, extensions):
+    # 定义元数据文件扩展名
+    if len(extensions) > 0 and not any(file_name.endswith(ext) for ext in extensions):
+        logging.info(f"跳过下载: {file_name} 不符合扩展名要求")
+        return True
+    else:
+        return False
+
+def download_pic(attr, extensions, count):
+    if should_skip(attr.get('name'), extensions):
+        return
+
     # 替换缩略图的路径，并下载图片
     thumb = attr["thumb"].replace("_100?", "_0?")
     img_path = strm_dir + attr["path"]
@@ -62,19 +73,19 @@ def download_pic(attr, count):
             count['failed_download_count'] += 1
         logging.error(f"下载图片失败: {e}")
 
-def download_pictures(client, cid, count):
+def download_pictures(client, cid, extensions, count):
     # 使用多线程下载图片
     logging.info("开始使用多线程下载图片...")
     with ThreadPoolExecutor(20) as executor:
-        executor.map(lambda attr: download_pic(attr, count), iter_files(client, cid, type=2, with_path=True))
+        executor.map(lambda attr: download_pic(attr, extensions, count), iter_files(client, cid, type=2, with_path=True))
 
 def download_file(client, attr, extensions, count):
     file_name = attr.get('name')
     file_path = strm_dir + attr["path"]
 
-    # 检查文件扩展名是否在 extensions 列表中
-    if not any(file_name.endswith(ext) for ext in extensions):
-        logging.info(f"跳过下载: {file_name} 不符合扩展名要求")
+    # 跳过视频和图片
+    file_class= attr.get('class')
+    if file_class == "AVI" or file_class == "PIC" or should_skip(attr.get('name'), extensions):
         return
 
     # 检查文件是否已经存在
@@ -102,7 +113,7 @@ def download_file(client, attr, extensions, count):
             logging.info(f"删除空文件: {file_name}")
             remove(file_path)
 
-def create_strm(client, cid, count):
+def create_strm(client, cid, extensions, count):
     # 创建 translate 方法
     transtab = {c: f"%{c:02x}" for c in b"/%?#"}
     translate = str.translate
@@ -110,6 +121,9 @@ def create_strm(client, cid, count):
     # 遍历文件并生成 .strm 文件
     logging.info("开始遍历文件并生成 .strm 文件...")
     for attr in iter_files(client, cid, type=4, with_path=True):
+        if should_skip(attr.get('name'), extensions):
+            continue
+
         # 分离文件名和扩展名
         file_path, _ = os.path.splitext(attr["path"])
         # 拼接路径，确保路径格式正确
@@ -154,10 +168,7 @@ def download_path(client, path, extensions):
     # Don't know why the cid is str, need to convert it to int when get path
     path = client.fs.get_path(int(cid))
 
-    # 定义元数据文件扩展名
-    extensions = extensions if len(extensions) > 0 else ['.nfo', '.srt', '.ass', '.ssa']
-    logging.info(f"定义元数据文件扩展名: {extensions}")
-
+    # 保存同步目录
     if exists(sync_file):
         with open(sync_file, 'r', encoding='utf-8') as fp:
             files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
@@ -179,8 +190,9 @@ def download_path(client, path, extensions):
     # 开始时间
     start_time = time.time()
 
-    create_strm(client, cid, count)
-    download_pictures(client, cid, count)
+    logging.info(f"过滤文件扩展名: {extensions}")
+    create_strm(client, cid, extensions, count)
+    download_pictures(client, cid, extensions, count)
     # 遍历文件并下载元数据和字幕文件
     logging.info("开始遍历文件并下载元数据...")
     for attr in iter_files(client, cid, type=99, with_path=True):
