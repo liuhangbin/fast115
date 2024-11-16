@@ -85,6 +85,10 @@ input[type=text] {
     width: 300px;
 }
 
+input[type="radio"]:checked + label {
+  color: red; /* 选中时改变关联标签的颜色 */
+}
+
 .submit {
     font-size: 12px;
     padding: 3px 5px;
@@ -116,6 +120,23 @@ input[type=text] {
 
 .inline-form {
     display: inline;
+}
+
+/* 控制 checkbox 的外观 */
+.styled-checkbox {
+    margin-right: 5px;
+}
+
+/* 控制 checkbox 容器的整体布局 */
+.checkbox-group {
+    display: flex;
+    gap: 20px; /* 控制间距 */
+}
+
+/* 可选：让整个组换行显示 */
+.checkbox-group > div {
+    display: flex;
+    align-items: center;
 }
 
 .log-body {

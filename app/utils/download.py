@@ -26,18 +26,7 @@ sync_file = Path(os.getenv('SYNC_FILE_PATH', '/data/sync.yaml')).expanduser()
 
 lock = Lock()
 
-def should_skip(file_name, extensions):
-    # 定义元数据文件扩展名
-    if len(extensions) > 0 and not any(file_name.endswith(ext) for ext in extensions):
-        logging.info(f"跳过下载: {file_name} 不符合扩展名要求")
-        return True
-    else:
-        return False
-
-def download_pic(attr, extensions, count):
-    if should_skip(attr.get('name'), extensions):
-        return
-
+def download_pic(attr, count):
     # 替换缩略图的路径，并下载图片
     thumb = attr["thumb"].replace("_100?", "_0?")
     img_path = strm_dir + attr["path"]
@@ -73,19 +62,18 @@ def download_pic(attr, extensions, count):
             count['failed_download_count'] += 1
         logging.error(f"下载图片失败: {e}")
 
-def download_pictures(client, cid, extensions, count):
+def download_pictures(client, cid, count):
     # 使用多线程下载图片
     logging.info("开始使用多线程下载图片...")
     with ThreadPoolExecutor(20) as executor:
-        executor.map(lambda attr: download_pic(attr, extensions, count), iter_files(client, cid, type=2, with_path=True))
+        executor.map(lambda attr: download_pic(attr, count), iter_files(client, cid, type=2, with_path=True))
 
 def download_file(client, attr, extensions, count):
     file_name = attr.get('name')
     file_path = strm_dir + attr["path"]
 
-    # 跳过视频和图片
-    file_class= attr.get('class')
-    if file_class == "AVI" or file_class == "PIC" or should_skip(attr.get('name'), extensions):
+    if not any(file_name.endswith(ext) for ext in extensions):
+        logging.info(f"跳过下载: {file_name} 不符合扩展名要求")
         return
 
     # 检查文件是否已经存在
@@ -94,7 +82,12 @@ def download_file(client, attr, extensions, count):
         count['existing_metadata_count'] += 1
         return
 
-    url = client.download_url(attr["pickcode"], use_web_api=True)
+    try:
+        url = client.download_url(attr["pickcode"], use_web_api=True)
+    except Exception as e:
+        logging.error(f"获取文件 {file_name} url 失败: {e}")
+        return
+
     logging.info(f"准备下载文件: {file_name} 到 {file_path}")
     try:
         if not exists(dirname(file_path)):
@@ -113,7 +106,7 @@ def download_file(client, attr, extensions, count):
             logging.info(f"删除空文件: {file_name}")
             remove(file_path)
 
-def create_strm(client, cid, extensions, count):
+def create_strm(client, cid, count):
     # 创建 translate 方法
     transtab = {c: f"%{c:02x}" for c in b"/%?#"}
     translate = str.translate
@@ -121,8 +114,6 @@ def create_strm(client, cid, extensions, count):
     # 遍历文件并生成 .strm 文件
     logging.info("开始遍历文件并生成 .strm 文件...")
     for attr in iter_files(client, cid, type=4, with_path=True):
-        if should_skip(attr.get('name'), extensions):
-            continue
 
         # 分离文件名和扩展名
         file_path, _ = os.path.splitext(attr["path"])
@@ -144,7 +135,7 @@ def create_strm(client, cid, extensions, count):
         except Exception as e:
             logging.error(f"写入 .strm 文件时出错: {e}")
 
-def download_path(client, path, extensions):
+def download_path(client, path, filetype):
     logging.info(f"使用自定义保存路径: {strm_dir}")
     makedirs(strm_dir, exist_ok=True)
     cid = 0
@@ -173,13 +164,13 @@ def download_path(client, path, extensions):
         with open(sync_file, 'r', encoding='utf-8') as fp:
             files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
 
-        files[cid] = {'path': path, 'ext': extensions}
+        files[cid] = {'path': path, 'filetype': filetype}
 
         with open(sync_file, 'w', encoding='utf-8') as fp:
             yaml.dump(files, fp, allow_unicode=True)
     else:
         with open(sync_file, 'w', encoding='utf-8') as fp:
-            yaml.dump({cid: {'path': path, 'ext': extensions}}, fp, allow_unicode=True)
+            yaml.dump({cid: {'path': path, 'filetype': filetype}}, fp, allow_unicode=True)
 
     # 统计变量
     count = {'strm_count': 0, 'existing_strm_count': 0,
@@ -190,13 +181,21 @@ def download_path(client, path, extensions):
     # 开始时间
     start_time = time.time()
 
-    logging.info(f"过滤文件扩展名: {extensions}")
-    create_strm(client, cid, extensions, count)
-    download_pictures(client, cid, extensions, count)
+    logging.info(f"过滤文件类型: {filetype}")
+    if filetype['video']:
+        create_strm(client, cid, count)
+    if filetype['image']:
+        download_pictures(client, cid, count)
     # 遍历文件并下载元数据和字幕文件
-    logging.info("开始遍历文件并下载元数据...")
-    for attr in iter_files(client, cid, type=99, with_path=True):
-        download_file(client, attr, extensions, count)
+    extensions=[]
+    if filetype['nfo']:
+        extensions.append('.nfo')
+    if filetype['subtitle']:
+        extensions.extend(['.srt', '.ass', '.ssa'])
+    if len(extensions) > 0:
+        logging.info("开始遍历文件并下载字幕元数据...")
+        for attr in iter_files(client, cid, type=99, with_path=True):
+            download_file(client, attr, extensions, count)
 
     # 结束时间
     end_time = time.time()

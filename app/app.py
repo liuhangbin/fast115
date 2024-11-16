@@ -66,7 +66,8 @@ def scheduled_task():
         with open(sync_file, 'r') as fp:
             files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
             for cid in files:
-                download_path(client, cid, files[cid]['ext'])
+                if 'filetype' in files[cid]:
+                    download_path(client, cid, files[cid]['filetype'])
 
 def validate_cron_expression(cron_expression):
     try:
@@ -153,14 +154,20 @@ def index():
     if request.method == 'POST':
         path = request.form.get('path')
         #create_strm = 'create_strm' in request.form  # 选择框的状态
-        # 删除多余的空格
-        ext = re.sub(r'\s+', ' ', request.form.get('extensions'))
-        if len(ext) > 0:
-            # 按照逗号或者空格分割
-            extensions = re.split(r'[，,\s]+', ext)
-        else:
-            extensions = []
-        download_path(client, path, extensions)
+        filetype = {}
+        count_true = 0
+        filetype['video'] = 'video' in request.form
+        filetype['image'] = 'image' in request.form
+        filetype['nfo'] = 'nfo' in request.form
+        filetype['subtitle'] = 'subtitle' in request.form
+        for key in filetype:
+            if filetype[key]:
+                count_true += 1
+        if count_true == 0:
+            flash('至少要同步一种类型的文件')
+            return redirect(url_for('index'))
+
+        download_path(client, path, filetype)
         return redirect(url_for('index'))  # 重定向回主页
 
     return render_template('index.html')
