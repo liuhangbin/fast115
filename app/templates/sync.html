@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h3>同步文件列表</h3>
+<ul class="files-list">
+    {% for key, details in items.items() %}
+        <li>
+            {{ details['path'] }}
+            {% for filetype, is_true in details['filetype'].items() %}
+                {% if is_true %}
+                    <span class="filetype">{{ filetype }}</span>
+                {% endif %}
+            {% endfor %}
+        </li>
+    {% endfor %}
+</ul>
+<div class="button-container">
+    <form action="/sync_all" method="post">
+        <button class="submit" type="submit">全量同步</button>
+    </form>
+    <form action="/sync_new" method="post">
+        <button class="submit" type="submit">增量同步</button>
+    </form>
+</div>
+{% endblock %}

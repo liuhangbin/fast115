@@ -21,6 +21,7 @@
         <ul>
             <li><a href="{{ url_for('index') }}">Home</a></li>
             <li><a href="{{ url_for('file_browser') }}">Files</a></li>
+            <li><a href="{{ url_for('sync_files') }}">Sync</a></li>
             <li><a href="{{ url_for('log_view') }}">Logs</a></li>
 	    {% if current_user.is_authenticated %}
                 <li><a href="{{ url_for('logout') }}">Logout</a></li>

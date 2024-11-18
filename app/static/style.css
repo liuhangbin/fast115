@@ -75,6 +75,19 @@ nav li a:hover {
     float: right;
 }
 
+.filetype {
+    float: right;
+    display: inline-block;
+    margin-right: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    color: black;
+    text-decoration: none;
+    background: #F5C518;
+    border-radius: 5px;
+    padding: 3px 5px;
+}
+
 /* 覆盖某些浏览器对 input 元素定义的字体 */
 input[type=submit] {
     font-family: inherit;
@@ -120,6 +133,22 @@ input[type="radio"]:checked + label {
 
 .inline-form {
     display: inline;
+}
+
+/* 并排显示 button */
+.button-container {
+    display: flex;
+    gap: 10px;
+}
+
+.form {
+    margin: 0;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
 }
 
 /* 控制 checkbox 的外观 */

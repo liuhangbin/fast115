@@ -5,4 +5,5 @@ flask_login
 python-115
 python-dotenv
 pyyaml
+sqlite3
 urllib3

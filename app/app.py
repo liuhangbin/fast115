@@ -13,7 +13,7 @@ from datetime import datetime
 import os, re, yaml
 
 from utils.log import print_message, configure_logging, read_log_file
-from utils.download import download_path
+from utils.download import download_path, sync_from_now, sync_from_beginning
 from utils.web302 import find_query_value, get_downurl, get_pickcode_for_sha1
 
 from dotenv import load_dotenv
@@ -61,13 +61,8 @@ def scheduled_task():
         print_message(f'Unable to sync files: invalid cookies?')
         return
 
-    print_message("开始定时任务");
-    if os.path.exists(sync_file):
-        with open(sync_file, 'r') as fp:
-            files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
-            for cid in files:
-                if 'filetype' in files[cid]:
-                    download_path(client, cid, files[cid]['filetype'])
+    print_message("开始定时任务")
+    sync_from_now(client)
 
 def validate_cron_expression(cron_expression):
     try:
@@ -204,6 +199,37 @@ def log_view():
 @login_required
 def log_data():
     return Response(read_log_file(), content_type='text/plain')
+
+@app.route('/sync_all', methods=['POST'])
+def sync_all():
+    if request.method == 'POST':
+        client = P115Client(cookies_path)
+        if not client.login_status():
+            return redirect(url_for('cookies'))
+        flash('开始全量同步')
+        sync_from_beginning(client)
+    return redirect(url_for('sync_files'))
+
+@app.route('/sync_new', methods=['POST'])
+def sync_new():
+    if request.method == 'POST':
+        client = P115Client(cookies_path)
+        if not client.login_status():
+            return redirect(url_for('cookies'))
+        flash('开始增量同步')
+        sync_from_now(client)
+    return redirect(url_for('sync_files'))
+
+@app.route('/sync')
+@app.route('/sync.html')
+@login_required
+def sync_files():
+    files = {}
+    if os.path.exists(sync_file):
+        with open(sync_file, 'r') as fp:
+            files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
+
+    return render_template('sync.html', items=files)
 
 @app.route('/file/')
 @app.route('/file/<path:subpath>')
