@@ -140,21 +140,22 @@ def download_path(client, path, filetype):
     makedirs(strm_dir, exist_ok=True)
     cid = 0
 
-    # Check if the path is a URL, e.g. https://115.com/?cid=0&offset=0&tab=&mode=wangpan
-    match = re.search(r"\?cid=([0-9]+)", path)
-    if match:
-        cid = match.group(1)
     # Check if the path is cid directly
-    elif path.isdigit():
+    if path.isdigit():
         cid = path
-    # Now the path should be dir like /movies/something/else
     else:
-        response = client.fs_dir_getid(path)
-        if response['errno'] != 0:
-            logging.error(f"路径获取cid失败: {response['error']}")
-            return
+        # Check if the path is a URL, e.g. https://115.com/?cid=0&offset=0&tab=&mode=wangpan
+        match = re.search(r"\?cid=([0-9]+)", path)
+        if match:
+            cid = match.group(1)
         else:
-            cid = response['id']
+            # 将 path 作为目录处理，尝试获取 cid
+            response = client.fs_dir_getid(path)
+            if response['errno'] != 0:
+                logging.error(f"路径获取 cid 失败: {response['error']}")
+                return
+            else:
+                cid = response['id']
 
     # Don't know why the cid is str, need to convert it to int when get path
     path = client.fs.get_path(int(cid))
