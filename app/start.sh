@@ -1,5 +1,6 @@
 #!/bin/bash
 
 source /myenv/bin/activate
-/app/app.py &
-wait
+while true; do
+	/app/app.py
+done

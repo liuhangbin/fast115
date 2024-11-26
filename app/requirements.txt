@@ -2,8 +2,8 @@ apscheduler
 croniter
 flask
 flask_login
+posixpatht
 python-115
 python-dotenv
 pyyaml
-sqlite3
 urllib3
