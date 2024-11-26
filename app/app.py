@@ -229,6 +229,12 @@ def sync_files():
         with open(sync_file, 'r') as fp:
             files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
 
+    for key, value in files.items():
+        if 'filetype' not in value:
+            flash('检测到旧的格式，请删除sync.yaml然后重建同步目录')
+            files = {}
+            break
+
     return render_template('sync.html', items=files)
 
 @app.route('/file/')
