@@ -2,8 +2,8 @@
 
 Fast 115 主要目的是支持115 webdev和视频302服务, 方便视频刮削浏览。
 
-此项目是基于 [python-115](https://github.com/ChenyangGao/web-mount-packs/tree/main/python-115-client)
-包装成docker的。感谢 `python-115` 作者的支持。
+此项目是基于 [p115 client](https://github.com/ChenyangGao/p115client.git)
+包装成docker的。感谢 `p115 client` 作者的支持。
 
 代码及功能讨论请进 [Fast115群](https://t.me/fast_115), 也建议加入[115操作交流群](https://t.me/operate115)。
 
@@ -96,6 +96,6 @@ Emby usage:
 
 ### 打赏
 
-欢迎打赏 `python-115` 作者 | 如果觉得我的项目对您有帮助，也欢迎打赏我哈
+欢迎打赏 `p115 client` 作者 | 如果觉得我的项目对您有帮助，也欢迎打赏我哈
 --- | ---
-![python-115](app/static/images/p115.jpeg) | ![Leo](app/static/images/Leo.png)
+![p115 client](app/static/images/p115.jpeg) | ![Leo](app/static/images/Leo.png)

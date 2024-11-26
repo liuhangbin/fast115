@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # vim: sts=4 ts=4 sw=4 expandtab :
 
-from p115 import P115Client
-from p115.tool import iter_files
+from p115client import P115Client
+from p115client.tool.iterdir import iter_files, get_path_to_cid
 from pathlib import Path
 from os import makedirs, remove
 from os.path import dirname, join, exists
@@ -250,7 +250,7 @@ def download_path(client, path, filetype):
                 cid = response['id']
 
     # Don't know why the cid is str, need to convert it to int when get path
-    path = client.fs.get_path(int(cid))
+    path = get_path_to_cid(client, int(cid))
 
     # 保存同步目录
     if exists(sync_file):

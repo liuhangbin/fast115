@@ -3,7 +3,7 @@ croniter
 flask
 flask_login
 posixpatht
-python-115
+p115client
 python-dotenv
 pyyaml
 urllib3
