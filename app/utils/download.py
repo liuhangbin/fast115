@@ -27,8 +27,6 @@ db_file = os.getenv('DB_FILE_PATH', '/data/fast115.sqlite')
 sync_file = Path(os.getenv('SYNC_FILE_PATH', '/data/sync.yaml')).expanduser()
 VIDEO_EXTENSIONS = {'.mkv', '.iso', '.ts', '.mp4', '.avi', '.rmvb', '.wmv', '.m2ts', '.mpg', '.flv', '.rm', '.mov'}
 
-lock = Lock()
-
 # 下载文件的通用函数
 def download_file(client, pickcode: str, file_path: str, overwrite: bool) -> bool:
     if os.path.exists(file_path) and not overwrite:
@@ -58,28 +56,20 @@ def download_metadata(client, attr, download_dir: str, overwrite: bool, allowed_
     file_path = os.path.join(download_dir, attr["path"].lstrip("/"))
 
     if not file_name.endswith(allowed_extensions):
-        logging.info(f"跳过下载: {file_name} 不符合扩展名要求")
         return False
 
     return download_file(client, attr["pickcode"], file_path, overwrite)
 
-def download_pic(attr, count):
+def download_pic(attr):
     # 替换缩略图的路径，并下载图片
     thumb = attr["thumb"].replace("_100?", "_0?")
     img_path = strm_dir + attr["path"]
 
-    if download_file(client, thumb, img_path, False):
-        with lock:
-            count['image_count'] += 1
-    else:
-        with lock:
-            count['failed_download_count'] += 1
+    download_file(client, thumb, img_path, False)
 
-def insert_strm(name, pickcode, strm_path, count = None):
+def insert_strm(name, pickcode, strm_path):
     if os.path.exists(strm_path):
         logging.info(f"跳过已存在的 .strm 文件: {strm_path}")
-        if count:
-            count['existing_strm_count'] += 1
         return
 
     # 创建 translate 方法
@@ -90,13 +80,11 @@ def insert_strm(name, pickcode, strm_path, count = None):
         os.makedirs(os.path.dirname(strm_path), exist_ok=True)
         with open(strm_path, "w") as f:
             f.write(f"{strm_host}/{translate(name, transtab)}?pickcode={pickcode}")
-        if count:
-            count['strm_count'] += 1
         logging.info(f"生成 .strm 文件: {strm_path}")
     except Exception as e:
         logging.error(f"写入 .strm 文件时出错: {e}")
 
-def create_strm_from_data(dir_path, count):
+def create_strm_from_data(dir_path):
     conn = sqlite3.connect(db_file)
     if not conn:
         logging.error("无法连接到数据库")
@@ -115,22 +103,16 @@ def create_strm_from_data(dir_path, count):
             file_path, _ = os.path.splitext(path)
             # 拼接路径，确保路径格式正确
             strm_path = strm_dir + file_path + ".strm"
-            insert_strm(name, pickcode, strm_path, count)
+            insert_strm(name, pickcode, strm_path)
 
 def download_files(client, cid, filetype, filepath):
-    # 统计变量
-    count = {'strm_count': 0, 'existing_strm_count': 0,
-             'image_count': 0, 'existing_image_count': 0,
-             'metadata_count': 0, 'existing_metadata_count': 0,
-             'failed_download_count': 0}
-
     logging.info(f"过滤文件类型: {filetype}")
     if filetype['video']:
-        create_strm_from_data(filepath, count)
+        create_strm_from_data(filepath)
     if filetype['image']:
         logging.info("开始使用多线程下载图片...")
         with ThreadPoolExecutor(20) as executor:
-            executor.map(lambda attr: download_pic(attr, count), iter_files(client, cid, type=2, with_path=True))
+            executor.map(lambda attr: download_pic(attr), iter_files(client, cid, type=2, with_path=True))
     # 遍历文件并下载元数据和字幕文件
     extensions=[]
     if filetype['nfo']:
@@ -140,20 +122,7 @@ def download_files(client, cid, filetype, filepath):
     if len(extensions) > 0:
         logging.info("开始遍历文件并下载字幕元数据...")
         for attr in iter_files(client, cid, type=99, with_path=True):
-            if download_metadata(client, attr, strm_dir, False, tuple(extensions)):
-                count['metadata_count'] += 1
-            else:
-                count['failed_download_count'] += 1
-
-    total_files = sum(count.values())
-    logging.info(f"总共生成新的 .strm 文件: {count['strm_count']}")
-    logging.info(f"总共跳过已存在的 .strm 文件: {count['existing_strm_count']}")
-    logging.info(f"总共下载新的图片: {count['image_count']}")
-    logging.info(f"总共跳过已存在的图片: {count['existing_image_count']}")
-    logging.info(f"总共下载新的元数据文件: {count['metadata_count']}")
-    logging.info(f"总共跳过已存在的元数据文件: {count['existing_metadata_count']}")
-    logging.info(f"总共下载失败: {count['failed_download_count']}")
-    logging.info(f"总共处理文件: {total_files}")
+            download_metadata(client, attr, strm_dir, False, tuple(extensions))
 
 def delete_file(file):
     logging.info(f"删除文件: {file}")
@@ -186,12 +155,12 @@ def deal_with_action(client, sync_path, attr, action, old_attr=None, summary=Non
         if action == 'delete':
             delete_file(strm_path)
         elif action == 'insert':
-            insert_strm(attr["name"], attr["pickcode"], strm_path, count = None)
+            insert_strm(attr["name"], attr["pickcode"], strm_path)
         elif action == 'update' and (summary['move'] or summary['rename']):
             old_file_path, _ = os.path.splitext(old_attr['path'])
             old_strm_path = strm_dir + old_file_path + ".strm"
             delete_file(old_strm_path)
-            insert_strm(attr["name"], attr["pickcode"], strm_path, count = None)
+            insert_strm(attr["name"], attr["pickcode"], strm_path)
     elif (
         ('image' in file_type and attr['is_image']) or
         ('nfo' in file_type and ext == '.nfo') or
@@ -296,17 +265,12 @@ def download_path(client, path, filetype):
         with open(sync_file, 'w', encoding='utf-8') as fp:
             yaml.dump({cid: {'path': path, 'filetype': filetype}}, fp, allow_unicode=True)
 
-    # 开始时间
     start_time = time.time()
 
     logging.info(f"开始更新数据库文件")
     updatedb(client, dbfile = db_file, top_dirs = cid, clean = True)
-    # 开始下载目录
     download_files(client, cid, filetype, path)
 
-    # 结束时间
     end_time = time.time()
-    # 计算总时间
     total_time = end_time - start_time
-    # 输出统计结果
     logging.info(f"总共耗时: {total_time:.2f} 秒")
