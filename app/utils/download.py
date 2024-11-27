@@ -40,7 +40,7 @@ def download_file(client, pickcode: str, file_path: str, overwrite: bool) -> boo
         url = client.download_url(pickcode)
     try:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with urlopen(Request(url)) as response, open(file_path, "wb") as f:
+        with urlopen(Request(url, headers=url["headers"])) as response, open(file_path, "wb") as f:
             copyfileobj(response, f)
         logging.info(f"文件下载完成: {file_path}")
         return True
