@@ -176,16 +176,15 @@ def cookies():
         cookies = request.form.get('cookies')
         app_name = request.form.get('app')
 
-        if cookies and app_name:  # 确保都获取到
-            client = P115Client(cookies=cookies, app=app_name)
-            if client.login_status():
-                open(cookies_path, "w").write(client.cookies_str)
-                return redirect(url_for('index'))  # 登录成功，重定向回主页
-            else:
-                print_message(f'Login failed: invalid cookies?')
-                return render_template('cookies.html')
+        client = P115Client(cookies=cookies, app=app_name,
+                            console_qrcode=False, ensure_cookies=True,
+                            check_for_relogin=False)
+        if client.login_status():
+            open(cookies_path, "w").write(client.cookies_str)
+            return redirect(url_for('index'))  # 登录成功，重定向回主页
         else:
-            flash('cookies and app are required!')
+            print_message(f'Login failed: invalid cookies?')
+            return render_template('cookies.html')
 
     return render_template('cookies.html')
 
