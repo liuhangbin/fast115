@@ -188,11 +188,16 @@ def sync_from_now(client):
     conn = sqlite3.connect(db_file)
     if not conn:
         logging.error("无法连接到数据库")
-        return
+        return 1
 
     # 清理事件数据库
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM event;")
+    try:
+        cursor.execute("DELETE FROM event;")
+        conn.commit()
+    except sqlite3.OperationalError as e:
+        logging.error(f"Error: {e}")
+        return 1
 
     files = {}
     if os.path.exists(sync_file):
@@ -208,6 +213,8 @@ def sync_from_now(client):
 
     for f in files:
         sync_path(client, files[f], data)
+
+    return 0
 
 # 全量更新: 暂时跳过已存在文件，如其他人有需求再添加强制覆盖选项
 def sync_from_beginning(client):

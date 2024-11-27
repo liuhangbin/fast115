@@ -266,7 +266,9 @@ def sync_new():
         if not client.login_status():
             return redirect(url_for('cookies'))
         flash('开始增量同步')
-        sync_from_now(client)
+        ret = sync_from_now(client)
+        if ret != 0:
+            flash('增量更新失败，请先尝试全量同步一次')
     return redirect(url_for('sync_files'))
 
 @app.route('/sync')
