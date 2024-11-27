@@ -1,16 +1,111 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h3>Cookies</h3>
-<form method="POST" action="/cookies">  <!-- 确保 action 指向正确的路由 -->
-    <label for="cookies">Cookies:</label><br>
-    <input type="text" id="cookies" name="cookies"><br><br>
-    <label for="app">App:</label><br>
-    <select id="app" name="app" required>
-        <option value="alipaymini">Alipay Mini</option>
-        <option value="wechatmini">WeChat Mini</option>
-        <option value="tv">TV</option>
-    </select><br><br>
-    <input type="submit" name="submit" value="登录">
-</form>
+<h3>请扫码登录并获取 Cookies</h3>
+
+<div id="qrcode-container">
+    <img id="qrcode" src="" alt="二维码" />
+</div>
+
+<!-- 选择应用程序 -->
+<label for="app">选择应用程序:</label>
+<select id="app" name="app">
+    <option value="wechatmini">WeChat Mini</option>
+    <option value="alipaymini">Alipay Mini</option>
+    <option value="tv">TV</option>
+    <option value="web">Web</option>
+    <option value="harmony">Harmony</option>
+</select>
+<br><br>
+<!-- 状态显示区域 -->
+<div id="status">二维码扫描状态</div>
+
+<script>
+    async function loadQrcode() {
+        const response = await fetch("/api/token");
+        if (!response.ok) {
+            alert('无法获取二维码');
+            return;
+        }
+
+        const data = await response.json();
+        const qrcodeUrl = `https://qrcodeapi.115.com/api/1.0/mac/1.0/qrcode?uid=${data.data.uid}`;
+        document.getElementById('qrcode').src = qrcodeUrl;
+
+        // 定期检查扫码状态
+        checkScanStatus(data.data.sign, data.data.time, data.data.uid);
+    }
+
+    async function checkScanStatus(sign, time, uid) {
+        const statusElement = document.getElementById("status");
+        while (true) {
+            // 请求二维码状态
+            const response = await fetch(`/api/status?sign=${sign}&time=${time}&uid=${uid}`);
+            if (!response.ok) {
+                throw new Error(`Request failed with status: ${response.status}, message: ${response.statusText}`);
+            }
+
+            const json = await response.json();
+            const { state, data: { status } } = json;
+            // 错误处理，如果返回的状态不正常
+            if (!state) {
+                throw new Error(`OSError: ${JSON.stringify(json)}`);
+            }
+            // 根据状态更新页面的状态信息
+            switch (status) {
+                case 0:
+                    statusElement.textContent = "[status=0] qrcode: waiting";
+                    break;
+                case 1:
+                    statusElement.textContent = "[status=1] qrcode: scanned";
+                    break;
+                case 2:
+                    statusElement.textContent = "[status=2] qrcode: signed in";
+                    await loadResult(uid); // 扫码成功后加载结果
+                    return;  // 退出轮询
+                case -1:
+                    statusElement.textContent = "[status=-1] qrcode: expired";
+                    alert('二维码已过期');
+                    return;  // 结束轮询
+                case -2:
+                    statusElement.textContent = "[status=-2] qrcode: canceled";
+                    alert('二维码被取消');
+                    return;  // 结束轮询
+                default:
+                    statusElement.textContent = `[status=${status}] qrcode: abort`;
+            }
+            // 如果状态还没有扫描成功，等待5秒后继续检查
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+    }
+
+    async function loadResult(uid) {
+        const app = document.getElementById("app").value;
+        const response = await fetch(`/api/result?app=${app}&uid=${uid}`);
+        const data = await response.json();
+
+        if (data.state) {
+            const cookies = data.cookie;
+
+            // 发送 POST 请求保存 cookie
+            const saveResponse = await fetch('/cookies.html', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `cookies=${encodeURIComponent(cookies)}&app=${encodeURIComponent(app)}`
+            });
+
+            if (saveResponse.ok) {
+                // 保存成功后自动跳转到首页
+                window.location.href = '/index.html';
+            } else {
+                alert('保存 Cookies 失败');
+            }
+        }
+    }
+
+    // 初始化二维码加载
+    loadQrcode();
+</script>
 {% endblock %}

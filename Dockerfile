@@ -10,7 +10,7 @@ ENV LANG=zh_CN.UTF-8
 
 # Install requirements
 RUN python3 -m venv /myenv && . /myenv/bin/activate && \
-	pip install --no-cache-dir flask flask_login p115client python-dotenv pyyaml urllib3
+	pip install --no-cache-dir flask flask_login p115client python-dotenv pyyaml requests urllib3
 RUN . /myenv/bin/activate && pip install --no-cache-dir apscheduler croniter posixpatht
 
 # 设置工作目录

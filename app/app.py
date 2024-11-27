@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # vim: sts=4 ts=4 sw=4 expandtab :
 
-from flask import Flask, request, Response, flash
+from flask import Flask, request, Response, flash, jsonify
 from flask import redirect, url_for, render_template, send_from_directory
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 from p115client import P115Client
@@ -10,7 +10,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from croniter import croniter
 from datetime import datetime
-import os, re, yaml
+import os, re, yaml, json
+import requests
 
 from utils.log import print_message, configure_logging, read_log_file
 from utils.download import download_path, sync_from_now, sync_from_beginning
@@ -167,25 +168,74 @@ def index():
 
     return render_template('index.html')
 
+@app.route('/api/token')
+def get_token():
+    # 获取二维码的 token（从外部API）
+    qrcode_api_url = "https://qrcodeapi.115.com/api/1.0/web/1.0/token/"
+    response = requests.get(qrcode_api_url)
+    if response.status_code == 200:
+        json_data = response.json()
+        # 返回 token 和二维码数据给前端
+        return jsonify(json_data)
+    else:
+        return jsonify({"error": "无法获取 token"}), 500
+
+@app.route('/api/status')
+def get_status():
+    sign = request.args.get('sign')
+    time = request.args.get('time')
+    uid = request.args.get('uid')
+
+    # 请求二维码扫描状态
+    status_api_url = "https://qrcodeapi.115.com/get/status/"
+    status_url = f"{status_api_url}?sign={sign}&time={time}&uid={uid}"
+    response = requests.get(status_url)
+    if response.status_code == 200:
+        json_data = response.json()
+        return jsonify(json_data)
+    else:
+        return jsonify({"error": "无法获取扫码状态"}), 500
+
+@app.route('/api/result')
+def get_result():
+    # 获取扫码后的 cookie 数据
+    app_name = request.args.get('app')
+    uid = request.args.get('uid')
+
+    # 请求扫码结果
+    result_url = f"https://passportapi.115.com/app/1.0/{app_name}/1.0/login/qrcode/"
+    payload = {'account': uid}
+    response = requests.post(result_url, data=payload)
+
+    if response.status_code == 200:
+        json_data = response.json()
+        cookie_data = json_data.get('data', {}).get('cookie', {})
+        cookie_str = '; '.join([f"{key}={value}" for key, value in cookie_data.items()])
+
+        # 返回 cookie 数据给前端
+        return jsonify({"state": json_data["state"], "cookie": cookie_str})
+    else:
+        return jsonify({"error": "无法获取登录结果"}), 500
+
 @app.route('/cookies', methods=['GET', 'POST'])
 @app.route('/cookies.html', methods=['GET', 'POST'])
 @login_required
 def cookies():
     if request.method == 'POST':
-        # 获取表单数据
-        cookies = request.form.get('cookies')
+        # 获取 POST 请求中的 cookies 和 app 信息
+        cookies_str = request.form.get('cookies')
         app_name = request.form.get('app')
 
-        client = P115Client(cookies=cookies, app=app_name,
-                            console_qrcode=False, ensure_cookies=True,
-                            check_for_relogin=False)
-        if client.login_status():
-            open(cookies_path, "w").write(client.cookies_str)
-            return redirect(url_for('index'))  # 登录成功，重定向回主页
-        else:
-            print_message(f'Login failed: invalid cookies?')
-            return render_template('cookies.html')
+        # 确保 cookies 和 app 存在
+        if not cookies_str or not app_name:
+            return jsonify({'message': 'Missing cookies or app parameter'}), 400
 
+        with open(cookies_path, 'w') as f:
+            f.write(cookies_str)
+        # 返回成功的响应
+        return jsonify({'message': 'Cookies saved successfully'}), 200
+
+    # 如果是GET请求，渲染 cookies.html 页面
     return render_template('cookies.html')
 
 @app.get("/log")
