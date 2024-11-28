@@ -20,8 +20,8 @@ if not os.path.exists(log_file):
 def trim_log_file(log_file_path,max_log_size_bytes=10 * 1024 * 1024):
     if not os.path.exists(log_file_path):
         return
-    max_log_size_bytes = 10 * 1024 * 1024  # 指定的最大日志文件大小，单位是字节
-    retention_size_bytes = int(10 * 1024 * 1024 * 0.5)  # 保留的日志内容大小，单位是字节
+    max_log_size_bytes = 5 * 1024 * 1024  # 指定的最大日志文件大小，单位是字节
+    retention_size_bytes = int(5 * 1024 * 1024 * 0.5)  # 保留的日志内容大小，单位是字节
 
     # 获取当前日志文件大小
     current_size = os.path.getsize(log_file_path)
