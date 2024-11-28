@@ -184,7 +184,7 @@ def sync_path(client, path, data):
             deal_with_action(client, path, new, _type, old_attr=old, summary=summary)
 
 # 增量更新
-def sync_from_now(client):
+def sync_from_now(client, use_fuse = False):
     conn = sqlite3.connect(db_file)
     if not conn:
         logging.error("无法连接到数据库")
@@ -207,6 +207,10 @@ def sync_from_now(client):
             if len(file_list) > 0:
                 updatedb(client, dbfile = conn, top_dirs = file_list)
 
+    if use_fuse:
+        conn.close()
+        return 0
+
     cursor.execute("SELECT * FROM event;")
     data = cursor.fetchall()
     conn.close()
@@ -217,7 +221,7 @@ def sync_from_now(client):
     return 0
 
 # 全量更新: 暂时跳过已存在文件，如其他人有需求再添加强制覆盖选项
-def sync_from_beginning(client):
+def sync_from_beginning(client, use_fuse = False):
     start_time = time.time()
     files = {}
     if os.path.exists(sync_file):
@@ -227,14 +231,15 @@ def sync_from_beginning(client):
             if len(file_list) > 0:
                 updatedb(client, dbfile = db_file, top_dirs = file_list)
 
-    for cid in files:
-        download_files(client, cid, files[cid]['filetype'], files[cid]['path'])
+    if not use_fuse:
+        for cid in files:
+            download_files(client, cid, files[cid]['filetype'], files[cid]['path'])
 
     end_time = time.time()
     total_time = end_time - start_time
     logging.info(f"总共耗时: {total_time:.2f} 秒")
 
-def download_path(client, path, filetype):
+def download_path(client, path, filetype, use_fuse = False):
     logging.info(f"使用自定义保存路径: {strm_dir}")
     makedirs(strm_dir, exist_ok=True)
     cid = 0
@@ -276,7 +281,8 @@ def download_path(client, path, filetype):
 
     logging.info(f"开始更新数据库文件")
     updatedb(client, dbfile = db_file, top_dirs = cid, clean = True)
-    download_files(client, cid, filetype, path)
+    if not use_fuse:
+        download_files(client, cid, filetype, path)
 
     end_time = time.time()
     total_time = end_time - start_time

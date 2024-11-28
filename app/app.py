@@ -5,6 +5,8 @@ from flask import Flask, request, Response, flash, jsonify
 from flask import redirect, url_for, render_template, send_from_directory
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 from p115client import P115Client
+from p115servedb.component.fuser import ServedbFuseOperations
+from path_predicate import make_predicate
 from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
@@ -12,6 +14,7 @@ from croniter import croniter
 from datetime import datetime
 import os, re, yaml, json
 import requests
+import atexit
 
 from utils.log import print_message, configure_logging, read_log_file
 from utils.download import download_path, sync_from_now, sync_from_beginning
@@ -24,13 +27,19 @@ load_dotenv()
 default_user = os.getenv('USERNAME', None)
 default_pass = os.getenv('PASSWORD', '@#$%^&!')
 strm_dir = os.getenv('STRM_DIR', '/media')
+strm_host = os.getenv('STRM_HOST', 'http://127.0.0.1:55000')
 app_port = os.getenv('APP_PORT', '5000')
 sync_cron = os.getenv('SYNC_CRON', '')
+db_file = os.getenv('DB_FILE_PATH', '/data/fast115.sqlite')
 sync_file = Path(os.getenv('SYNC_FILE_PATH', '/data/sync.yaml')).expanduser()
 cookies_path = Path(os.getenv('COOKIE_PATH', '/data/115-cookies.txt')).expanduser()
 if not os.path.exists(cookies_path):
     with open(cookies_path, 'w') as f:
         f.write('')
+# use fuse
+use_fuse = os.getenv('USE_FUSE', None)
+fast_strm = os.getenv('FAST_STRM', None)
+fuse_started = False
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -63,7 +72,7 @@ def scheduled_task():
         return
 
     print_message("开始定时任务")
-    sync_from_now(client)
+    sync_from_now(client, use_fuse=use_fuse)
 
 def validate_cron_expression(cron_expression):
     try:
@@ -104,6 +113,44 @@ def start_scheduler():
         print_message(f"Job scheduled with cron expression: {sync_cron}")
     except ValueError as e:
         print_message(f"Error scheduling job: {e}")
+
+# 启动fuse
+def start_fuse():
+    global fuse_started
+    if fuse_started is False and os.path.exists(cookies_path) and os.path.exists(db_file):
+        options = {
+        "mountpoint": strm_dir,
+        "allow_other": True,
+        "foreground": False,
+        "max_readahead": 0,
+        "noauto_cache": True,
+        "ro": True,
+        }
+        predicate = None
+        strm_predicate = None
+        if fast_strm:
+            predicate = make_predicate("""(
+                path.is_dir() or path.media_type.startswith("image/") or
+                path.suffix.lower() in (".nfo", ".ass", ".ssa", ".srt", ".idx", ".sub", ".txt", ".vtt", ".smi")
+            )""", type="expr")
+            strm_predicate = make_predicate("""(
+                path.media_type.startswith(("video/", "audio/")) and
+                path.suffix.lower() != ".ass"
+            )""", type="expr")
+        try:
+            ServedbFuseOperations(db_file, cookies_path, predicate=predicate,
+                strm_predicate=strm_predicate, strm_origin=strm_host).run(**options)
+        except Exception as e:
+            print_message(f"挂载文件系统失败: {e}")
+        # 无论成功还是失败，不再尝试
+        fuse_started = True
+
+# 使用 atexit 注册卸载操作
+# FIXME: 实际使用重启的时候好像没用
+def on_exit():
+    os.system(f'fusermount -u {strm_dir}')
+
+atexit.register(on_exit)
 
 @app.errorhandler(404)  # 传入要处理的错误代码
 def page_not_found(e):  # 接受异常对象作为参数
@@ -163,7 +210,9 @@ def index():
             flash('至少要同步一种类型的文件')
             return redirect(url_for('index'))
 
-        download_path(client, path, filetype)
+        download_path(client, path, filetype, use_fuse=use_fuse)
+        if use_fuse and not fuse_started:
+            start_fuse()
         return redirect(url_for('index'))  # 重定向回主页
 
     return render_template('index.html')
@@ -262,7 +311,9 @@ def sync_all():
         if not client.login_status():
             return redirect(url_for('cookies'))
         flash('开始全量同步')
-        sync_from_beginning(client)
+        sync_from_beginning(client, use_fuse=use_fuse)
+        if use_fuse and not fuse_started:
+            start_fuse()
     return redirect(url_for('sync_files'))
 
 @app.route('/sync_new', methods=['POST'])
@@ -272,9 +323,11 @@ def sync_new():
         if not client.login_status():
             return redirect(url_for('cookies'))
         flash('开始增量同步')
-        ret = sync_from_now(client)
+        ret = sync_from_now(client, use_fuse=use_fuse)
         if ret != 0:
             flash('增量更新失败，请先尝试全量同步一次')
+        elif use_fuse and not fuse_started:
+            start_fuse()
     return redirect(url_for('sync_files'))
 
 @app.route('/sync')
@@ -359,4 +412,6 @@ def web302(name=""):
 if __name__ == '__main__':
     configure_logging()
     start_scheduler()  # 启动定时任务调度器
+    if use_fuse and not fuse_started:
+        start_fuse()
     app.run(host='0.0.0.0', port=app_port)

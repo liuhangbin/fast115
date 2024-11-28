@@ -17,13 +17,14 @@
 - [x] 本地302服务
 - [x] 登陆验证
 - [x] 增量同步
-- [ ] 上传功能
-- [ ] webdav 支持
+- [x] fuse支持 (只读文件系统)
 - [ ] emby客户端302支持
 - [ ] 提升性能
+- [ ] 使用异步重构代码
+- [ ] 原生 webdav 支持
+- [ ] 上传功能
 - [ ] 更好的界面
 - [ ] 更好的日志输出
-- [ ] 使用异步重构代码
 
 ### 网站样式
 
@@ -38,24 +39,39 @@ docker compose:
 ---
 ```
 services:
-    fast115:
-        image: liuhangbin/fast115:latest
-        container_name: fast115
-        hostname: fast115
-        ports:
-            - 55000:5000
-        volumes:
-            - /your_data_path:/data     # 数据目录，存放 cookies, logs
-            - /your_media_path:/media   # 媒体目录，存放strm 链接等
-        environment:
-            - TZ=Asia/Shanghai
-            - STRM_HOST=you_external_domain # strm 地址，从内部访问就内网IP, 外部访问就填外网域名
-            - APP_PORT=5000 # docker映射端口，默认5000, 如果要改成其他值，请和上面的ports映射同时修改
-            - SYNC_CRON="0 0 * * *" # cron 格式的定时任务
-            - USERNAME=admin    # 用户名，不需要的话可以不加
-            - PASSWORD=fast115  # 同上
-        networks: bridge
-        restart: unless-stop
+  fast115:
+    image: liuhangbin/fast115:latest
+    container_name: fast115
+    hostname: fast115
+    ports:
+      - 55000:5000
+    volumes:
+      - /your_data_path:/data     # 数据目录，存放 cookies, logs
+      - type: bind
+        source: /your_media_path  # 媒体目录，存放strm 链接等, 如使用fuse请清空目录
+        target: /media
+        bind:
+          propagation: rshared
+    environment:
+      - TZ=Asia/Shanghai
+      - STRM_HOST=you_external_domain # strm 地址，从内部访问就内网IP, 外部访问就填外网域名
+      - APP_PORT=5000 # docker映射端口，默认5000, 如果要改成其他值，请和上面的ports映射同时修改
+      - SYNC_CRON="0 0 * * *" # cron 格式的定时任务
+      - USERNAME=admin    # 用户名，不需要的话可以不加
+      - PASSWORD=fast115  # 同上
+    networks: bridge
+    restart: unless-stop
+    # 如果要使用fuse请添加下面的内容
+    # 需要host支持fuse, 默认挂载到/media, 只读文件系统, 暂时不支持后缀筛选
+    # 注意: 目前无法重启自动卸载，需要关闭docker后手动卸载 /your_media_path
+    environment:
+      - USE_FUSE=yes
+      - FAST_STRM=yes
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
 ```
 
 Emby usage:
@@ -96,6 +112,7 @@ Emby usage:
 ### 注意事项
 
 1. 使用p115拉取文件会给文件打`星标`, 在意这一点的朋友请避免使用。
+2. 使用fuse目前无法自动卸载，docker 如需重启，需要在关闭docker后手动卸载挂载点
 
 ### 打赏
 

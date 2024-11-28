@@ -4,6 +4,8 @@ flask
 flask_login
 posixpatht
 p115client
+p115servedb
 python-dotenv
 pyyaml
+requests
 urllib3
