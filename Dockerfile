@@ -12,10 +12,18 @@ RUN sed -i 's/# user_allow_other/user_allow_other/' /etc/fuse.conf
 ENV LANG=zh_CN.UTF-8
 
 # Install requirements
-RUN python3 -m venv /myenv && . /myenv/bin/activate && \
-	pip install --no-cache-dir flask flask_login p115client p115servedb \
-	python-dotenv pyyaml requests urllib3
-RUN . /myenv/bin/activate && pip install --no-cache-dir apscheduler croniter posixpatht
+RUN python3 -m venv /myenv
+# basic packages
+RUN . /myenv/bin/activate && pip install fusepy python-dotenv pyyaml requests urllib3
+RUN . /myenv/bin/activate && pip install apscheduler croniter posixpatht
+# Web framework
+RUN . /myenv/bin/activate && pip install flask flask_login
+RUN . /myenv/bin/activate && pip install blacksheep uvicorn WsgiDAV
+# p115 requires
+RUN . /myenv/bin/activate && pip install ed2k path_predicate qrcode
+RUN . /myenv/bin/activate && pip install p115client
+RUN . /myenv/bin/activate && pip install p115servedb
+RUN . /myenv/bin/activate && pip cache purge
 
 # 设置工作目录
 RUN mkdir /data
