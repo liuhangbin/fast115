@@ -205,7 +205,7 @@ def sync_from_now(client, use_fuse = False):
             files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
             file_list = list(files.keys())
             if len(file_list) > 0:
-                updatedb(client, dbfile = conn, top_dirs = file_list)
+                updatedb(client, dbfile = conn, top_dirs = file_list, clean = True)
 
     if use_fuse:
         conn.close()
@@ -229,7 +229,7 @@ def sync_from_beginning(client, use_fuse = False):
             files = yaml.safe_load(fp) or {}  # 确保文件为空时返回空字典
             file_list = list(files.keys())
             if len(file_list) > 0:
-                updatedb(client, dbfile = db_file, top_dirs = file_list)
+                updatedb(client, dbfile = db_file, top_dirs = file_list, clean = True)
 
     if not use_fuse:
         for cid in files:
