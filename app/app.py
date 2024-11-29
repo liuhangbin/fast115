@@ -230,8 +230,14 @@ def cookies():
         if not cookies_str or not app_name:
             return jsonify({'message': 'Missing cookies or app parameter'}), 400
 
-        with open(cookies_path, 'w') as f:
-            f.write(cookies_str)
+        # 尝试直接写入 P115Client cookies_str, 因为默认cookie没有 acw_tc
+        client = P115Client(cookies = cookies_str)
+        if client.login_status():
+            with open(cookies_path, 'w') as f:
+                f.write(client.cookies_str)
+        else:
+            with open(cookies_path, 'w') as f:
+                f.write(cookies_str)
         # 返回成功的响应
         return jsonify({'message': 'Cookies saved successfully'}), 200
 
