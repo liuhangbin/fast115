@@ -13,6 +13,7 @@
 - [x] 下载指定文件夹的图片，info文件并创建视频strm文件
 - [x] 浏览器直接浏览已下载内容
 - [ ] 单独删除某一个同步目录
+- [x] 非原生 webdav
 - [x] 在线扫码二维码登陆
 - [x] 本地302服务
 - [x] 登陆验证
@@ -61,6 +62,12 @@ services:
       - PASSWORD=fast115  # 同上
     networks: bridge
     restart: unless-stop
+    # 如果要使用webdav请添加下面的内容
+    ports:
+      - 55001:5001
+    environment:
+      - DAV_PORT=5001  # webdav端口，如果要改成其他值，请和上面的ports映射同时修改
+      - FAST_STRM=yes  # 是否开启快速媒体筛选和虚拟strm, 不开启请不要添加这个变量
     # 如果要使用fuse请添加下面的内容
     # 需要host支持fuse, 默认挂载到/media, 只读文件系统, 暂时不支持后缀筛选
     # 注意: 目前无法重启自动卸载，需要关闭docker后手动卸载 /your_media_path
@@ -113,6 +120,7 @@ Emby usage:
 
 1. 使用p115拉取文件会给文件打`星标`, 在意这一点的朋友请避免使用。
 2. 使用fuse目前无法自动卸载，docker 如需重启，需要在关闭docker后手动卸载挂载点
+3. 使用webdav必须先有数据库，如果没有数据库的话无法创建服务，需要生成数据库后重启docker
 
 ### 打赏
 
