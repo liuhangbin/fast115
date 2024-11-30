@@ -215,6 +215,13 @@ def index():
             start_fuse()
         return redirect(url_for('index'))  # 重定向回主页
 
+    # support addr like domain/?pickcode=xxx
+    pickcode = request.args.get("pickcode")
+    if pickcode:
+        user_agent = (request.get_first_header(b"User-agent") or b"").decode("latin-1")
+        url = client.download_url(pickcode, headers={"user-agent": user_agent})
+        return redirect(url)
+
     return render_template('index.html')
 
 @app.route('/api/token')

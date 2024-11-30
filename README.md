@@ -18,7 +18,7 @@
 - [x] 本地302服务
 - [x] 登陆验证
 - [x] 增量同步
-- [x] fuse支持 (只读文件系统)
+- [x] fuse支持 (只读文件系统, 见注意事项)
 - [ ] emby客户端302支持
 - [ ] 提升性能
 - [ ] 使用异步重构代码
@@ -120,6 +120,8 @@ Emby usage:
 
 1. 使用p115拉取文件会给文件打`星标`, 在意这一点的朋友请避免使用。
 2. 使用fuse目前无法自动卸载，docker 如需重启，需要在关闭docker后手动卸载挂载点
+   目前使用 fuse 的时候strm 路径是 domain:port/?pickcode=xxx, fast115暂时无法解析。
+   临时解决方案是 docker STRM_HOST 变量设置为 STRM_HOST=https://your_domain:your_port/strm/path
 3. 使用webdav必须先有数据库，如果没有数据库的话无法创建服务，需要生成数据库后重启docker
 
 ### 打赏
