@@ -25,7 +25,12 @@ strm_dir = os.getenv('STRM_DIR', '/media')
 strm_host = os.getenv('STRM_HOST', 'http://127.0.0.1:55000')
 db_file = os.getenv('DB_FILE_PATH', '/data/fast115.sqlite')
 sync_file = Path(os.getenv('SYNC_FILE_PATH', '/data/sync.yaml')).expanduser()
-VIDEO_EXTENSIONS = {'.mkv', '.iso', '.ts', '.mp4', '.avi', '.rmvb', '.wmv', '.m2ts', '.mpg', '.flv', '.rm', '.mov'}
+VIDEO_EXTENSIONS = [
+    ".3gp", ".amv", ".asf", ".divx", ".dv", ".drc", ".flv", ".f4v", ".h264",
+    ".iso", ".ivf", ".m2ts", ".m4v", ".mkv", ".mov", ".mp4", ".mpg", ".mpeg",
+    ".mpv", ".rm", ".rmvb", ".svi", ".ts", ".vob", ".webm", ".wmv", ".xvid",
+    ".yuv", ".qt", ".ogv", ".mxf", ".avi"
+]
 
 # 下载文件的通用函数
 def download_file(client, pickcode: str, file_path: str, overwrite: bool) -> bool:
