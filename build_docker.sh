@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 镜像的版本号和 Docker Hub 用户名
-VERSION="0.1.7"
+VERSION="0.1.8"
 IMAGE_NAME="liuhangbin/fast115"
 PLATFORMS="linux/amd64,linux/arm64"
 
