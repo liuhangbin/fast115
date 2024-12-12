@@ -146,12 +146,11 @@ def deal_with_action(client, sync_path, attr, action, old_attr=None, summary=Non
         """通用文件处理函数"""
         if action == 'delete':
             delete_file(path)
-        elif action == 'insert' and fetch_url:
+        elif action == 'insert':
             download_file(client, pickcode, path, False)
         elif action == 'update' and (summary.get('move') or summary.get('rename')):
             delete_file(old_path)
-            if fetch_url:
-                download_file(client, pickcode, path, False)
+            download_file(client, pickcode, path, False)
 
     if 'video' in file_type and ext in VIDEO_EXTENSIONS:
         # deal with videos
