@@ -3,6 +3,8 @@
 
 from p115client import P115Client
 from p115client.tool.iterdir import iter_files, get_path_to_cid
+from p115updatedb import updatedb
+from p115updatedb.query import get_path, iter_descendants_fast
 from pathlib import Path
 from os import makedirs, remove
 from os.path import dirname, join, exists
@@ -14,9 +16,6 @@ import logging
 import os, re, sys, time, json
 import yaml
 import sqlite3
-
-# import utils/updatedb.py
-from utils.updatedb import updatedb
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -43,10 +42,17 @@ def download_file(client, pickcode: str, file_path: str, overwrite: bool) -> boo
         url = pickcode
     else:
         url = client.download_url(pickcode, app = "android")
+
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     try:
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with urlopen(Request(url, headers=url["headers"])) as response, open(file_path, "wb") as f:
-            copyfileobj(response, f)
+        # no need headers if it is a picture url
+        logging.info(f"url is: {url}")
+        if type(url) == str:
+            with urlopen(Request(url)) as response, open(file_path, "wb") as f:
+                copyfileobj(response, f)
+        else:
+            with urlopen(Request(url, headers=url["headers"])) as response, open(file_path, "wb") as f:
+                copyfileobj(response, f)
         logging.info(f"文件下载完成: {file_path}")
         return True
     except Exception as e:
@@ -65,7 +71,7 @@ def download_metadata(client, attr, download_dir: str, overwrite: bool, allowed_
 
     return download_file(client, attr["pickcode"], file_path, overwrite)
 
-def download_pic(attr):
+def download_pic(client, attr):
     # 替换缩略图的路径，并下载图片
     thumb = attr["thumb"].replace("_100?", "_0?")
     img_path = strm_dir + attr["path"]
@@ -89,31 +95,26 @@ def insert_strm(name, pickcode, strm_path):
     except Exception as e:
         logging.error(f"写入 .strm 文件时出错: {e}")
 
-def create_strm_from_data(dir_path):
-    conn = sqlite3.connect(db_file)
+def create_strm_from_data(cid):
+    conn = sqlite3.connect(db_file, check_same_thread=False)
     if not conn:
         logging.error("无法连接到数据库")
 
-    # 匹配路径的时候最后添加/， 以免路径前面相同
-    dir_path = dir_path.rstrip('/') + '/'
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT name, pickcode, path FROM data WHERE path LIKE '{dir_path}%';")
-    data = cursor.fetchall()
-    conn.close()
-
     logging.info("开始遍历文件并生成 .strm 文件...")
-    for name, pickcode, path in data:
-        if Path(path).suffix.lower() in VIDEO_EXTENSIONS:
+    for attr in iter_descendants_fast(conn, cid):
+        if Path(attr['path']).suffix.lower() in VIDEO_EXTENSIONS:
             # 分离文件名和扩展名
-            file_path, _ = os.path.splitext(path)
+            file_path, _ = os.path.splitext(attr['path'])
             # 拼接路径，确保路径格式正确
             strm_path = strm_dir + file_path + ".strm"
-            insert_strm(name, pickcode, strm_path)
+            insert_strm(attr['name'], attr['pickcode'], strm_path)
+
+    conn.close()
 
 def download_files(client, cid, filetype, filepath):
     logging.info(f"过滤文件类型: {filetype}")
     if filetype['video']:
-        create_strm_from_data(filepath)
+        create_strm_from_data(cid)
     if filetype['image']:
         logging.info("开始使用多线程下载图片...")
         with ThreadPoolExecutor(20) as executor:
@@ -133,63 +134,73 @@ def delete_file(file):
     logging.info(f"删除文件: {file}")
     Path(file).unlink(missing_ok=True)
 
-def deal_with_action(client, sync_path, attr, action, old_attr=None, summary=None):
-    if not attr['path'].startswith(sync_path['path']):
+#FIXME: updatedb can't get move action. For rename we just need to change
+# the name, no need to edit the file context or re-download
+def deal_with_action(client, sync_folder, attr, action, old_attr=None):
+    if not attr['path'].startswith(sync_folder['path']):
         return
 
-    logging.info(f"增量更新: {summary}")
-
     ext = Path(attr['path']).suffix.lower()
-    file_type = sync_path['filetype']
+    file_type = sync_folder['filetype']
 
     def handle_file(client, pickcode, path, old_path, action):
         """通用文件处理函数"""
-        if action == 'delete':
+        if action == 'remove':
             delete_file(path)
-        elif action == 'insert':
+        elif action == 'add':
             download_file(client, pickcode, path, False)
-        elif action == 'update' and (summary.get('move') or summary.get('rename')):
-            delete_file(old_path)
-            download_file(client, pickcode, path, False)
+        elif action == 'rename':
+            try:
+                os.rename(old_path, path)
+            except Exception as e:
+                logging.error(f"重命名错误: {e}")
 
     if 'video' in file_type and ext in VIDEO_EXTENSIONS:
         # deal with videos
         file_path, _ = os.path.splitext(attr['path'])
         strm_path = strm_dir + file_path + ".strm"
-        if action == 'delete':
+        if action == 'remove':
             delete_file(strm_path)
-        elif action == 'insert':
+        elif action == 'add':
             insert_strm(attr["name"], attr["pickcode"], strm_path)
-        elif action == 'update' and (summary['move'] or summary['rename']):
-            old_file_path, _ = os.path.splitext(old_attr['path'])
-            old_strm_path = strm_dir + old_file_path + ".strm"
+        elif action == 'rename':
+            old_filename = f"{os.path.splitext(old_attr['name'])[0]}.strm"
+            old_strm_path = os.path.join(os.path.dirname(strm_path), old_filename)
             delete_file(old_strm_path)
             insert_strm(attr["name"], attr["pickcode"], strm_path)
     elif (
-        ('image' in file_type and attr['is_image']) or
+        ('image' in file_type and attr['type'] == 2) or
         ('nfo' in file_type and ext == '.nfo') or
         ('subtitle' in file_type and ext in ['.srt', '.ass', '.ssa'])
     ):
         # deal with nfo and subtitles
         file_path = strm_dir + attr["path"]
-        old_path = strm_dir + old_attr["path"] if old_attr else None
+        old_path = os.path.join(os.path.dirname(file_path), old_attr["name"]) if old_attr else None
         handle_file(client, attr["pickcode"], file_path, old_path, action)
 
-def sync_path(client, path, data):
-    for _id, _type, _old, _new, _summary, time in data:
+def sync_path(client, path, data, conn):
+    for main_id, _id, _old, _new, _type, time in data:
         old = json.loads(_old) if _old else None
+        if old:
+            old['path'] = get_path(conn, _id)
         new = json.loads(_new) if _new else None
-        summary = json.loads(_summary) if _summary else None
-        if _type == 'insert':
-            deal_with_action(client, path, new, _type, summary=summary)
-        elif _type == 'delete':
-            deal_with_action(client, path, old, _type, summary=summary)
-        elif _type == 'update':
-            deal_with_action(client, path, new, _type, old_attr=old, summary=summary)
+        if new:
+            new['path'] = get_path(conn, _id)
+            # when rename, all the info is in old attr
+            if old:
+                new['pickcode'] = old['pickcode']
+                new['type'] = old['type']
+
+        if 'add' in _type:
+            deal_with_action(client, path, new, "add")
+        elif 'remove' in _type:
+            deal_with_action(client, path, old, "remove")
+        elif 'rename' in _type:
+            deal_with_action(client, path, new, "rename", old_attr=old)
 
 # 增量更新
 def sync_from_now(client, use_fuse = False):
-    conn = sqlite3.connect(db_file)
+    conn = sqlite3.connect(db_file, check_same_thread=False)
     if not conn:
         logging.error("无法连接到数据库")
         return 1
@@ -217,10 +228,10 @@ def sync_from_now(client, use_fuse = False):
 
     cursor.execute("SELECT * FROM event;")
     data = cursor.fetchall()
-    conn.close()
 
     for f in files:
-        sync_path(client, files[f], data)
+        sync_path(client, files[f], data, conn)
+    conn.close()
 
     return 0
 
