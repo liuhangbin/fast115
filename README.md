@@ -125,6 +125,16 @@ Emby usage:
    临时解决方案是 docker STRM_HOST 变量设置为 STRM_HOST=https://your_domain:your_port/strm/path
 3. 使用webdav必须先有数据库，如果没有数据库的话无法创建服务，需要生成数据库后重启docker
 
+### 大佬的其他项目
+
+[p115client](https://pypi.org/project/p115client/)
+[p115updatedb](https://pypi.org/project/p115updatedb/)
+[p115servedb](https://pypi.org/project/p115servedb/)
+[p115tiny302](https://pypi.org/project/p115tiny302/)
+[p115dav](https://pypi.org/project/p115dav/)
+[python-emby-proxy](https://pypi.org/project/python-emby-proxy/)
+[python-115](https://pypi.org/project/python-115/)
+
 ### 打赏
 
 欢迎打赏 `p115 client` 作者 | 如果觉得我的项目对您有帮助，也欢迎打赏我哈
