@@ -42,7 +42,7 @@ def download_file(client, pickcode: str, file_path: str, overwrite: bool) -> boo
     if pickcode.find("115.com") != -1:
         url = pickcode
     else:
-        url = client.download_url(pickcode)
+        url = client.download_url(pickcode, app = "android")
     try:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with urlopen(Request(url, headers=url["headers"])) as response, open(file_path, "wb") as f:

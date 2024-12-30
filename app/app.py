@@ -219,7 +219,7 @@ def index():
     pickcode = request.args.get("pickcode")
     if pickcode:
         user_agent = (request.get_first_header(b"User-agent") or b"").decode("latin-1")
-        url = client.download_url(pickcode, headers={"user-agent": user_agent})
+        url = client.download_url(pickcode, app = "android", headers={"user-agent": user_agent})
         return redirect(url)
 
     return render_template('index.html')
