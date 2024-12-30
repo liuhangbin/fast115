@@ -27,7 +27,7 @@ load_dotenv()
 default_user = os.getenv('USERNAME', None)
 default_pass = os.getenv('PASSWORD', '@#$%^&!')
 strm_dir = os.getenv('STRM_DIR', '/media')
-strm_host = os.getenv('STRM_HOST', 'http://127.0.0.1:55000')
+strm_host = os.getenv('STRM_HOST', 'http://127.0.0.1:5000')
 app_port = os.getenv('APP_PORT', '5000')
 sync_cron = os.getenv('SYNC_CRON', '')
 db_file = os.getenv('DB_FILE_PATH', '/data/fast115.sqlite')
@@ -388,9 +388,10 @@ def download_file(filename):
 
 @app.route("/<path:name>", methods=["GET", "HEAD"])
 def web302(name=""):
-    if not os.path.exists(cookies_path):
-        return render_template('404.html', error = f"no cookie file found: {cookies_path}"), 404
-    cookies = open(cookies_path, encoding="latin-1").read()
+    client = P115Client(cookies_path)
+    if not client.login_status():
+        return redirect(url_for('cookies'))  # 跳转到登录页面
+
     query_string = request.query_string.decode().strip()
     pickcode = find_query_value(query_string, "pickcode")
     if not pickcode:
@@ -401,24 +402,21 @@ def web302(name=""):
         elif len(query_string) == 40 and not query_string.strip(hexdigits):
             sha1 = query_string
         if sha1:
-            pickcode = get_pickcode_for_sha1(sha1.upper())
+            pickcode = get_pickcode_for_sha1(client, sha1.upper())
             if not pickcode:
                 return render_template('404.html', error = f"no file with sha1: {sha1!r}"), 404
     if not pickcode:
         pickcode = query_string
     if not pickcode.isalnum():
         return Response(f"bad pickcode: {pickcode!r}", 400)
-    user_agent = request.headers.get("user-agent", "")
-    resp = get_downurl(cookies, pickcode.lower(), user_agent)
-    if resp["state"]:
-        item = next(iter(resp["data"].values()))
-        if item["url"]:
-            return redirect(item["url"]["url"])
-    return render_template('404.html', error = f"no file with pickcode: {pickcode!r}"), 404  # 返回模板和状态码
+
+    user_agent = (request.get_first_header(b"User-agent") or b"").decode("latin-1")
+    url = get_downurl(client, pickcode.lower(), user_agent, app="android")
+    return redirect(url)
 
 if __name__ == '__main__':
     configure_logging()
     start_scheduler()  # 启动定时任务调度器
     if use_fuse and not fuse_started:
         start_fuse()
-    app.run(host='0.0.0.0', port=app_port)
+    app.run(host='0.0.0.0', port=app_port, debug=True)
