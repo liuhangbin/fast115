@@ -14,7 +14,6 @@ from croniter import croniter
 from datetime import datetime
 import os, re, yaml, json
 import requests
-import atexit
 
 from utils.log import print_message, configure_logging, read_log_file
 from utils.download import download_path, sync_from_now, sync_from_beginning
@@ -144,13 +143,6 @@ def start_fuse():
             print_message(f"挂载文件系统失败: {e}")
         # 无论成功还是失败，不再尝试
         fuse_started = True
-
-# 使用 atexit 注册卸载操作
-# FIXME: 实际使用重启的时候好像没用
-def on_exit():
-    os.system(f'fusermount -u {strm_dir}')
-
-atexit.register(on_exit)
 
 @app.errorhandler(404)  # 传入要处理的错误代码
 def page_not_found(e):  # 接受异常对象作为参数
