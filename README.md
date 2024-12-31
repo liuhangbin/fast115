@@ -19,7 +19,7 @@
 - [x] 登陆验证
 - [x] 增量同步
 - [x] fuse支持 (只读文件系统, 见注意事项)
-- [ ] emby客户端302支持
+- [x] emby客户端302支持
 - [ ] 115 tg bot
 - [ ] 提升性能
 - [ ] 使用异步重构代码
@@ -63,12 +63,21 @@ services:
       - PASSWORD=fast115  # 同上
     networks: bridge
     restart: unless-stop
+
+    # 如果要使用客户端emby302代理请添加下面的内容
+    ports:
+      - 58097:8097
+    environment:
+      - EMBY_HOST=you_internal_emby_domain  # 要代理的emby地址，包括端口号，例如http://192.168.1.100:8096
+      - EMBY_PROXY_PORT=8097                # emby转发端口, 要跟port设置一致
+
     # 如果要使用webdav请添加下面的内容
     ports:
       - 55001:5001
     environment:
       - DAV_PORT=5001  # webdav端口，如果要改成其他值，请和上面的ports映射同时修改
       - FAST_STRM=yes  # 是否开启快速媒体筛选和虚拟strm, 不开启请不要添加这个变量
+
     # 如果要使用fuse请添加下面的内容
     # 需要host支持fuse, 默认挂载到/media, 只读文件系统, 暂时不支持后缀筛选
     # 注意: 目前无法重启自动卸载，需要关闭docker后手动卸载 /your_media_path
