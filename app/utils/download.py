@@ -46,7 +46,6 @@ def download_file(client, pickcode: str, file_path: str, overwrite: bool) -> boo
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     try:
         # no need headers if it is a picture url
-        logging.info(f"url is: {url}")
         if type(url) == str:
             with urlopen(Request(url)) as response, open(file_path, "wb") as f:
                 copyfileobj(response, f)

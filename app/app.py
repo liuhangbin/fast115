@@ -411,4 +411,4 @@ if __name__ == '__main__':
     start_scheduler()  # 启动定时任务调度器
     if use_fuse and not fuse_started:
         start_fuse()
-    app.run(host='0.0.0.0', port=app_port, debug=True)
+    app.run(host='0.0.0.0', port=app_port)
