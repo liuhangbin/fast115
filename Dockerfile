@@ -20,9 +20,9 @@ RUN . /myenv/bin/activate && pip install apscheduler croniter posixpatht
 RUN . /myenv/bin/activate && pip install flask flask_login
 RUN . /myenv/bin/activate && pip install blacksheep uvicorn WsgiDAV
 # p115 requires
-RUN . /myenv/bin/activate && pip install cachedict ed2k path_predicate qrcode python-emby-proxy
+RUN . /myenv/bin/activate && pip install cachedict ed2k path_predicate qrcode
 # always use the latest p115client
-RUN . /myenv/bin/activate && pip install --no-cache-dir p115client p115servedb p115updatedb python-emby-proxy
+RUN . /myenv/bin/activate && pip install p115client p115servedb p115updatedb python-emby-proxy
 RUN . /myenv/bin/activate && pip cache purge
 
 # 设置工作目录
